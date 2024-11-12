@@ -1,0 +1,52 @@
+-- Below you can find SQL I wrote to query a database with multiple tables to quantify statistics about customer and order data. 
+
+--How many orders were placed in January?--
+SELECT COUNT (orderID)
+FROM JanSales
+WHERE LENGTH(orderID) = 6
+AND orderID <> 'Order ID';
+
+-- How many of those orders were for an iPhone? --
+SELECT COUNT(orderID)
+FROM JanSales
+WHERE LENGTH(orderID) = 6
+AND orderID <> 'Order ID'
+AND product = 'iPhone';
+
+-- Select the customer account numbers for all the orders that were placed in February. --
+SELECT DISTINCT cust.acctnum
+FROM customers as cust
+JOIN FebSales as feb
+ON cust.order_id = feb.orderID
+WHERE LENGTH(feb.orderID) = 6
+AND feb.orderID <> 'Order ID';
+
+-- Which product was the cheapest one sold in January, and what was the price? --
+SELECT DISTINCT product
+, price
+FROM JanSales
+WHERE price IN(SELECT MIN(price) FROM JanSales);
+
+-- What is the total revenue for each product sold in January? --
+SELECT product
+, SUM(quantity) * price as revenue
+FROM JanSales
+GROUP BY product;
+
+-- Which products were sold in February at 548 Lincoln St, Seattle, WA 98101, how many of each were sold, and what was the total revenue? --
+SELECT product
+, SUM(quantity) as num_sold
+, SUM(quantity) * price as total_revenue
+FROM FebSales
+WHERE location = '548 Lincoln St, Seattle, WA 98101'
+GROUP BY product;
+
+-- How many customers ordered more than 2 products at a time in February, and what was the average amount spent for those customers? --
+SELECT COUNT(DISTINCT cust.acctnum)
+, AVG(feb.quantity * feb.price) as average_spent
+FROM customers AS cust
+LEFT JOIN FebSales AS feb
+ON cust.order_id = feb.orderID
+WHERE feb.quantity > 2
+AND length(orderid) = 6
+AND orderid <> 'Order ID';
