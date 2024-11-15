@@ -1,0 +1,282 @@
+-- This database contains information about a music company and includes tables with details on it's customers, employees, invoices, and the music they supply.  I used SQL to dig into this data and answer a variety of questions.
+-- First I wanted to dig into customer demographics and their behavior.
+
+-- What countries are our customers in? 
+SELECT DISTINCT
+    country
+FROM customers;
+
+-- Which customers are not in the US? 
+SELECT customerid,
+       firstname,
+       lastname,
+       country
+FROM customers
+WHERE country <> 'USA';
+
+--Which customers are in Brazil? 
+SELECT customerid,
+       firstname,
+       lastname,
+       country
+FROM customers
+WHERE country = 'Brazil';
+
+-- What are the details of the invoices of those customers in Brazil? 
+SELECT cust.firstname,
+       cust.lastname,
+       inv.invoiceid,
+       inv.billingcountry
+FROM customers AS cust
+    JOIN invoices AS inv
+        ON cust.customerid = inv.customerid
+WHERE inv.billingcountry = 'Brazil';
+
+-- How many customers are in each of the countries?
+SELECT country,
+       COUNT(customerid) AS num_cust
+FROM customers
+GROUP BY country
+ORDER BY COUNT(customerid) DESC;
+
+-- What countries have more than one customer?
+SELECT country,
+       COUNT(customerid) AS num_cust
+FROM customers
+GROUP BY country
+HAVING num_cust > 1
+ORDER BY num_cust DESC;
+
+--For countries with more than 1 customer, what is the value of their total invoices?
+SELECT cust.country,
+       COUNT(cust.customerid) AS num_cust,
+       inv.invoiceid,
+       ROUND(SUM(inv.total), 2) AS total_inv
+FROM customers cust
+    JOIN invoices inv
+        ON cust.customerid = inv.customerid
+GROUP BY cust.country
+HAVING num_cust > 1
+ORDER BY total_inv DESC;
+
+-- What countries do the employees each service?
+SELECT emp.firstname,
+       emp.lastname,
+       cust.country
+FROM employees emp
+    JOIN customers cust
+        ON emp.employeeid = cust.supportrepid
+GROUP BY cust.country
+ORDER BY emp.lastname;
+
+--Which employees support customers in sales?
+SELECT employeeid,
+       firstname,
+       lastname,
+       title
+FROM employees
+WHERE title LIKE '%Sales%';
+
+-- Which sales agent is responsible for which invoices? 
+SELECT emp.firstname,
+       emp.lastname,
+       inv.invoiceid
+FROM employees AS emp
+    JOIN customers AS cust
+        ON emp.employeeid = cust.supportrepid
+    JOIN invoices AS inv
+        ON cust.customerid = inv.customerid
+ORDER BY emp.lastname;
+
+--What are the invoice details for all invoices and customers? 
+SELECT inv.total, 
+       cust.firstname || ' ' || cust.lastname AS cust_name, 
+       inv.billingcountry, 
+       emp.firstname || ' ' || emp.lastname AS emp_name
+FROM employees AS emp
+    JOIN customers AS cust
+        ON emp.employeeid = cust.supportrepid
+    JOIN invoices AS inv
+        ON cust.customerid = inv.customerid;
+
+-- What genres are most popular among the various regions?
+WITH temptable
+AS (SELECT CASE
+               WHEN billingcountry = 'Argentina'
+                    OR billingcountry = 'Brazil'
+                    OR billingcountry = 'Canada'
+                    OR billingcountry = 'Chile'
+                    OR billingcountry = 'USA' THEN
+                   'Americas'
+               WHEN billingcountry = 'Austria'
+                    OR billingcountry = 'Belgium'
+                    OR billingcountry = 'Czech Republic'
+                    OR billingcountry = 'Denmark'
+                    OR billingcountry = 'Finland'
+                    OR billingcountry = 'France'
+                    OR billingcountry = 'Germany'
+                    OR billingcountry = 'Hungary'
+                    OR billingcountry = 'Ireland'
+                    OR billingcountry = 'Italy'
+                    OR billingcountry = 'Netherlands'
+                    OR billingcountry = 'Norway'
+                    OR billingcountry = 'Poland'
+                    OR billingcountry = 'Portugal'
+                    OR billingcountry = 'Spain'
+                    OR billingcountry = 'Sweden'
+                    OR billingcountry = 'United Kingdom' THEN
+                   'EMEA'
+               WHEN billingcountry = 'Australia'
+                    OR billingcountry = 'India' THEN
+                   'APAC'
+               ELSE
+                   'NA'
+           END AS region,
+           genres.name,
+           COUNT(genres.name) AS count
+    FROM invoices AS inv
+        JOIN invoice_items AS items
+            ON inv.invoiceid = items.invoiceid
+        JOIN tracks
+            ON tracks.trackid = items.trackid
+        JOIN genres
+            ON genres.genreid = tracks.genreid
+    GROUP BY genres.name
+   )
+SELECT region,
+       name,
+       MAX(count) AS total
+FROM temptable
+GROUP BY region;
+
+-- Next I wanted to take a look at invoice and revenue to see what insights I could find.
+
+--What is the average invoice total per customer?
+SELECT customerid,
+       ROUND(AVG(total), 2) AS avg_invoice_total
+FROM invoices
+GROUP BY customerid
+ORDER BY avg_invoice_total DESC;
+ 
+--What were the total invoices in 2013 by quarter?
+SELECT CASE
+           WHEN invoicedate >= '2013-10-%' THEN
+               'Q4'
+           WHEN invoicedate >= '2013-07-%' THEN
+               'Q3'
+           WHEN invoicedate >= '2013-04-%' THEN
+               'Q2'
+           WHEN invoicedate >= '2013-01-%' THEN
+               'Q1'
+           ELSE
+               'N/A'
+       END AS quarters,
+       ROUND(SUM(total), 2) AS total
+FROM invoices
+WHERE invoicedate LIKE '2013-%'
+GROUP BY quarters;
+
+-- What percentage of customers have spent above the average total?
+WITH temptable
+AS (SELECT customerid,
+           total,
+           CASE
+               WHEN total > '5.65' THEN
+                   'Above Average'
+               ELSE
+                   'Below Average'
+           END AS Above_or_Below
+    FROM invoices
+   )
+SELECT 100 * COUNT(Above_or_Below) / 412 AS percent_above_avg
+FROM temptable
+WHERE Above_or_Below = 'Above Average';
+
+--What are all the billing countries?
+SELECT DISTINCT
+    billingcountry
+FROM invoices;
+
+-- How many Invoices were there in 2009? 
+SELECT COUNT(invoiceid) AS num_invoices
+FROM invoices
+WHERE invoicedate LIKE '2009-%';
+
+-- What are the total sales for 2009?
+SELECT ROUND(SUM(total), 2) AS total_sales
+FROM invoices
+WHERE invoicedate LIKE '2009-%';
+
+--What is the total sales per sales agent? 
+SELECT emp.firstname || ' ' || emp.lastname AS emp_name, 
+       ROUND(SUM(inv.total), 2) AS total_sales
+FROM employees AS emp
+    JOIN customers AS cust
+        ON cust.supportrepid = emp.employeeid
+    JOIN invoices AS inv
+        ON inv.customerid = cust.customerid
+GROUP BY emp_name;
+
+-- Which sales agent made the most dollars in sales in 2009?
+WITH temptable 
+AS (SELECT emp.firstname || ' ' || emp.lastname AS emp_name, 
+           ROUND(SUM(inv.total), 2) AS total_sales
+   FROM employees AS emp
+       JOIN customers AS cust
+           ON cust.supportrepid = emp.employeeid
+       JOIN invoices AS inv
+           ON inv.customerid = cust.customerid
+   WHERE inv.invoicedate LIKE '2009-%%'
+   GROUP BY emp_name
+   )
+SELECT emp_name, 
+       MAX(total_sales) AS total_sales_2009
+FROM temptable;
+
+--From here I thought I'd look at the music and tracks for any interesting insights.
+
+-- Which music tracks are the most popular overall?
+SELECT COUNT(items.trackid) AS count, 
+       tracks.name AS title, artists.name AS artist
+FROM invoice_items AS items
+    JOIN tracks 
+        ON items.trackid = tracks.TrackId
+    JOIN albums
+        ON albums.albumid = tracks.albumid
+    JOIN artists
+        ON artists.ArtistId = albums.ArtistId
+GROUP BY tracks.name
+ORDER BY count DESC
+LIMIT 10;
+
+-- What are all the tracks that have been purchased and on which invoices?  
+SELECT tracks.name,
+       items.invoicelineid
+FROM tracks
+    JOIN invoice_items AS items
+        ON tracks.trackid = items.trackid;
+
+--What are the track names and artist names on all invoices? 
+SELECT items.invoicelineid,
+       tracks.name AS track_title,
+       artists.name AS artist_name
+FROM tracks
+    JOIN invoice_items AS items
+        ON tracks.trackid = items.trackid
+    JOIN albums
+        ON albums.albumid = tracks.AlbumId
+    JOIN artists
+        ON albums.artistid = artists.ArtistId;
+
+--What are all the tracks, album names, media types, and genres, not just the ones that have been purchased?  
+SELECT tracks.name,
+       albums.Title,
+       media.name AS media_type,
+       genres.name AS genre
+FROM tracks
+    LEFT JOIN albums
+        ON tracks.albumid = albums.AlbumId
+    LEFT JOIN media_types AS media
+        ON media.mediatypeid = tracks.MediaTypeId
+    LEFT JOIN genres
+        ON genres.genreid = tracks.TrackId;
