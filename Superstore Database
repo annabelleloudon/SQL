@@ -1,4 +1,4 @@
-#This project uses the following Superstore data: 
+-- This project uses the following Superstore data: 
 
 CREATE TABLE superstore (
     item_id INTEGER PRIMARY KEY,
@@ -27,25 +27,25 @@ VALUES
     (14, 'Cutlery Set', 'Kitchen Supplies', 34.50, 40, 4.4),
     (15, 'Cozy Throw Blanket', 'Furnishings', 24.99, 100, 4.2);
 
-#For this project, I used SQL to query the Superstore database to get information about items sold at the store and their prices. 
+-- For this project, I used SQL to query the Superstore database to get information about items sold at the store and their prices. 
 
-#Use a SELECT statement to order the items by price.
+-- Order the items by price.
 SELECT item_name, price
 FROM superstore
 ORDER BY price;
 
-#Show a statistic about the item prices.
+-- What is the total stock per category?
 SELECT SUM(stock_quantity), category
 FROM superstore
 GROUP BY category;
-
-#Show a statistic about the price for items in the category of "Kitchen Supplies". 
+ 
+-- What is the average price of items in the Kitchen Supplies category?
 SELECT AVG(price), item_name, category
 FROM superstore
 WHERE category = 'Kitchen Supplies'
 GROUP BY item_name;
 
-#Answer the question - what is the most expensive item in the "Electronics" category?
+-- What is the most expensive item in the "Electronics" category?
 SELECT item_name, category, price
 FROM superstore
 WHERE category = 'Electronics'
